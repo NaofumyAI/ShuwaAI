@@ -1,4 +1,6 @@
 import customtkinter as ctk
+import threading
+
 from ai.brain import responder
 from voice.tts import hablar
 
@@ -82,7 +84,7 @@ class ShuwaWindow(ctk.CTk):
             "LM Studio : 🟢\n\n"
             "Memoria : 🟢\n\n"
             "Contexto : 🟢\n\n"
-            "Voz : 🔴\n\n"
+            "Voz : 🟢\n\n"
             "Twitch : 🔴\n\n"
             "OBS : 🔴\n\n"
             "VTube : 🔴"
@@ -134,30 +136,34 @@ class ShuwaWindow(ctk.CTk):
 
         self.entrada.bind("<Return>", self.enviar)
 
-        micro = ctk.CTkButton(
+        self.boton_micro = ctk.CTkButton(
             abajo,
             text="🎤",
             width=50
         )
 
-        micro.pack(side="left", padx=5)
+        self.boton_micro.pack(side="left", padx=5)
 
-        enviar = ctk.CTkButton(
+        self.boton_enviar = ctk.CTkButton(
             abajo,
             text="Enviar",
             width=120,
             command=self.enviar
         )
 
-        enviar.pack(side="left", padx=5)
+        self.boton_enviar.pack(side="left", padx=5)
 
-        config = ctk.CTkButton(
+        self.boton_config = ctk.CTkButton(
             abajo,
             text="⚙",
             width=50
         )
 
-        config.pack(side="left", padx=5)
+        self.boton_config.pack(side="left", padx=5)
+
+    #=====================================
+    # ENVIAR MENSAJE
+    #=====================================
 
     def enviar(self, event=None):
 
@@ -171,12 +177,50 @@ class ShuwaWindow(ctk.CTk):
             f"👤 Tú:\n{mensaje}\n\n"
         )
 
-        self.entrada.delete(0,"end")
+        self.chat.insert(
+            "end",
+            "🤖 Shuwa:\nPensando...\n\n"
+        )
 
-        self.update()
+        self.chat.see("end")
 
-        respuesta = responder(mensaje)
-        hablar(respuesta)
+        self.entrada.delete(0, "end")
+
+        self.entrada.configure(state="disabled")
+        self.boton_enviar.configure(state="disabled")
+
+        threading.Thread(
+            target=self.procesar_respuesta,
+            args=(mensaje,),
+            daemon=True
+        ).start()
+
+    #=====================================
+    # HILO
+    #=====================================
+
+    def procesar_respuesta(self, mensaje):
+
+        try:
+
+            respuesta = responder(mensaje)
+
+        except Exception as e:
+
+            respuesta = f"Error:\n{e}"
+
+        self.after(
+            0,
+            lambda: self.mostrar_respuesta(respuesta)
+        )
+
+    #=====================================
+    # MOSTRAR RESPUESTA
+    #=====================================
+
+    def mostrar_respuesta(self, respuesta):
+
+        self.chat.delete("end-3l", "end")
 
         self.chat.insert(
             "end",
@@ -184,3 +228,8 @@ class ShuwaWindow(ctk.CTk):
         )
 
         self.chat.see("end")
+
+        self.entrada.configure(state="normal")
+        self.boton_enviar.configure(state="normal")
+
+        hablar(respuesta)

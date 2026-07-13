@@ -1,14 +1,42 @@
-import pyttsx3
+from kokoro import KPipeline
+import sounddevice as sd
+import threading
 
-engine = pyttsx3.init()
+pipeline = KPipeline(lang_code="a")
 
-engine.setProperty("rate",170)
+# Evita que dos voces hablen al mismo tiempo
+hablando = False
 
-engine.setProperty("volume",1.0)
+
+def _hablar(texto):
+    global hablando
+
+    hablando = True
+
+    try:
+        generator = pipeline(
+            texto,
+            voice="af_heart"
+        )
+
+        for _, _, audio in generator:
+            sd.stop()
+            sd.play(audio, 24000)
+            sd.wait()
+
+    finally:
+        hablando = False
 
 
 def hablar(texto):
+    global hablando
 
-    engine.say(texto)
+    # Si ya estaba hablando, detenemos el audio
+    if hablando:
+        sd.stop()
 
-    engine.runAndWait()
+    threading.Thread(
+        target=_hablar,
+        args=(texto,),
+        daemon=True
+    ).start()
